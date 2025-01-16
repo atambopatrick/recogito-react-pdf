@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { CgDebug, CgChevronLeft, CgChevronRight, CgArrowsExpandDownRight } from 'react-icons/cg';
+import { CgDebug, CgChevronLeft, CgChevronRight, CgArrowsExpandDownRight, CgMaximize } from 'react-icons/cg';
 import { RiImageEditFill } from 'react-icons/ri';
 
 import AnnotatablePage from './AnnotatablePage';
@@ -15,9 +15,18 @@ const PaginatedViewer = props => {
 
   const [ zoom, setZoom ] = useState(props.initialZoom || 1);
 
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState(null);
+
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
   // Render first page on mount
   useEffect(() => {
-    props.pdf.getPage(1).then(setPage);
+    setIsLoading(true);
+    props.pdf.getPage(1)
+      .then(setPage)
+      .catch(err => setError('Failed to load PDF page'))
+      .finally(() => setIsLoading(false));
   }, []);
 
   const onPreviousPage = () => {
@@ -73,17 +82,31 @@ const PaginatedViewer = props => {
     setZoom(prevZoom => Math.max(prevZoom - 0.1, props.minZoom || 0.5));
   };
 
+  const toggleFullscreen = () => {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen();
+      setIsFullscreen(true);
+    } else {
+      document.exitFullscreen();
+      setIsFullscreen(false);
+    }
+  };
+
   return (
     <div className="paginated-viewer" style={props.containerStyle}>
       <header className="pdf-viewer-header" style={props.headerStyle}>
         <div className="toolbar-group left">
-          <button onClick={() => setDebug(!debug)}>
+          <button 
+            onClick={() => setDebug(!debug)}
+            title="Toggle Debug Mode">
             <span className="inner">
               <CgDebug />
             </span>
           </button>
 
-          <button onClick={onPreviousPage}>
+          <button 
+            onClick={onPreviousPage}
+            title="Previous Page (←)">
             <span className="inner">
               <CgChevronLeft />
             </span>
@@ -112,9 +135,15 @@ const PaginatedViewer = props => {
               <RiImageEditFill />
             </span>
           </button>
-        </div>
 
-        <div className="toolbar-group right">
+          <button 
+            onClick={toggleFullscreen}
+            title="Toggle Fullscreen">
+            <span className="inner">
+              <CgMaximize />
+            </span>
+          </button>
+
           <div className="zoom-controls">
             <button onClick={handleZoomOut}>-</button>
             <span>{Math.round(zoom * 100)}%</span>
@@ -124,22 +153,24 @@ const PaginatedViewer = props => {
       </header>
 
       <main style={props.mainStyle}>
-        <div 
-          className="pdf-viewer-container"
-          style={{ transform: `scale(${zoom})`, transformOrigin: 'top left' }}
-        >
-          <AnnotatablePage 
-            page={page} 
-            annotations={page ? props.store.getAnnotations(page.pageNumber) : []}
-            config={props.config}
-            debug={debug} 
-            annotationMode={annotationMode}
-            zoom={zoom}
-            onCreateAnnotation={onCreateAnnotation}
-            onUpdateAnnotation={onUpdateAnnotation}
-            onDeleteAnnotation={onDeleteAnnotation} 
-            onCancelSelected={props.onCancelSelected} />
-        </div>
+        {error && <div className="error-message">{error}</div>}
+        {isLoading && <div className="loading-spinner">Loading...</div>}
+        {!error && !isLoading && (
+          <div className="pdf-viewer-container"
+            style={{ transform: `scale(${zoom})`, transformOrigin: 'top left' }}>
+            <AnnotatablePage 
+              page={page} 
+              annotations={page ? props.store.getAnnotations(page.pageNumber) : []}
+              config={props.config}
+              debug={debug} 
+              annotationMode={annotationMode}
+              zoom={zoom}
+              onCreateAnnotation={onCreateAnnotation}
+              onUpdateAnnotation={onUpdateAnnotation}
+              onDeleteAnnotation={onDeleteAnnotation} 
+              onCancelSelected={props.onCancelSelected} />
+          </div>
+        )}
       </main>
     </div>
   )
