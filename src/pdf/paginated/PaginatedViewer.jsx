@@ -13,6 +13,8 @@ const PaginatedViewer = props => {
 
   const [ annotationMode, setAnnotationMode ] = useState('ANNOTATION');
 
+  const [ zoom, setZoom ] = useState(props.initialZoom || 1);
+
   // Render first page on mount
   useEffect(() => {
     props.pdf.getPage(1).then(setPage);
@@ -62,55 +64,77 @@ const PaginatedViewer = props => {
     const extended = extendTarget(a, props.url, page.pageNumber);
     props.onDeleteAnnotation && props.onDeleteAnnotation(extended);
   }
-  
+
+  const handleZoomIn = () => {
+    setZoom(prevZoom => Math.min(prevZoom + 0.1, props.maxZoom || 3));
+  };
+
+  const handleZoomOut = () => {
+    setZoom(prevZoom => Math.max(prevZoom - 0.1, props.minZoom || 0.5));
+  };
+
   return (
-    <div>
-      <header>
-        <button onClick={() => setDebug(!debug)}>
-          <span className="inner">
-            <CgDebug />
-          </span>
-        </button>
+    <div className="paginated-viewer" style={props.containerStyle}>
+      <header className="pdf-viewer-header" style={props.headerStyle}>
+        <div className="toolbar-group left">
+          <button onClick={() => setDebug(!debug)}>
+            <span className="inner">
+              <CgDebug />
+            </span>
+          </button>
 
-        <button onClick={onPreviousPage}>
-          <span className="inner">
-            <CgChevronLeft />
-          </span>
-        </button>
+          <button onClick={onPreviousPage}>
+            <span className="inner">
+              <CgChevronLeft />
+            </span>
+          </button>
 
-        <label>{page?.pageNumber} / {props.pdf.numPages}</label>
-        
-        <button onClick={onNextPage}>
-          <span className="inner">
-            <CgChevronRight />
-          </span>
-        </button>
+          <label>{page?.pageNumber} / {props.pdf.numPages}</label>
+          
+          <button onClick={onNextPage}>
+            <span className="inner">
+              <CgChevronRight />
+            </span>
+          </button>
 
-        <button 
-          className={annotationMode === 'RELATIONS' ? 'active' : null} 
-          onClick={onToggleRelationsMode}>
-          <span className="inner">
-            <CgArrowsExpandDownRight />
-          </span>
-        </button>
+          <button 
+            className={annotationMode === 'RELATIONS' ? 'active' : null} 
+            onClick={onToggleRelationsMode}>
+            <span className="inner">
+              <CgArrowsExpandDownRight />
+            </span>
+          </button>
 
-        <button
-          className={annotationMode === 'IMAGE' ? 'active' : null} 
-          onClick={onToggleImageMode}>
-          <span className="inner">
-            <RiImageEditFill />
-          </span>
-        </button>
+          <button
+            className={annotationMode === 'IMAGE' ? 'active' : null} 
+            onClick={onToggleImageMode}>
+            <span className="inner">
+              <RiImageEditFill />
+            </span>
+          </button>
+        </div>
+
+        <div className="toolbar-group right">
+          <div className="zoom-controls">
+            <button onClick={handleZoomOut}>-</button>
+            <span>{Math.round(zoom * 100)}%</span>
+            <button onClick={handleZoomIn}>+</button>
+          </div>
+        </div>
       </header>
 
-      <main>
-        <div className="pdf-viewer-container">
+      <main style={props.mainStyle}>
+        <div 
+          className="pdf-viewer-container"
+          style={{ transform: `scale(${zoom})`, transformOrigin: 'top left' }}
+        >
           <AnnotatablePage 
             page={page} 
             annotations={page ? props.store.getAnnotations(page.pageNumber) : []}
             config={props.config}
             debug={debug} 
-            annotationMode={annotationMode} 
+            annotationMode={annotationMode}
+            zoom={zoom}
             onCreateAnnotation={onCreateAnnotation}
             onUpdateAnnotation={onUpdateAnnotation}
             onDeleteAnnotation={onDeleteAnnotation} 
@@ -119,7 +143,15 @@ const PaginatedViewer = props => {
       </main>
     </div>
   )
-
 }
+
+PaginatedViewer.defaultProps = {
+  initialZoom: 1,
+  minZoom: 0.5,
+  maxZoom: 3,
+  containerStyle: {},
+  headerStyle: {},
+  mainStyle: {}
+};
 
 export default PaginatedViewer;
